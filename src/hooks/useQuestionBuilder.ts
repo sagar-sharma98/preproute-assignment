@@ -126,6 +126,27 @@ export function useQuestionBuilder(testId: string) {
     setServerError('');
   }
 
+  function handleAddQuestion(values: QuestionFormValues) {
+    const prepared = prepareQuestion(values);
+    const nextQuestions = [...questions];
+    nextQuestions[activeSlot] = { ...prepared, id: questions[activeSlot]?.id };
+    setQuestions(nextQuestions);
+    setServerError('');
+
+    const nextEmptySlot = Array.from({ length: totalQuestions }, (_, index) => index).find(
+      (index) => index > activeSlot && !nextQuestions[index]?.question?.trim()
+    );
+
+    if (nextEmptySlot !== undefined) {
+      setActiveSlot(nextEmptySlot);
+      return;
+    }
+
+    if (activeSlot < totalQuestions - 1) {
+      setActiveSlot((slot) => slot + 1);
+    }
+  }
+
   function handleNext(values: QuestionFormValues) {
     upsertQuestion(values);
     if (activeSlot < totalQuestions - 1) {
@@ -192,6 +213,7 @@ export function useQuestionBuilder(testId: string) {
     hasSavedQuestions,
     setActiveSlot,
     handleNext,
+    handleAddQuestion,
     saveAndContinue,
     clearActiveQuestion,
     isSlotComplete,

@@ -20,10 +20,13 @@ import {
   Underline
 } from 'lucide-react';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { Question, SubTopic, Topic } from '../../types';
 import { Field, Select, Textarea } from '../shared/FormField';
+
+const correctOptions = ['option1', 'option2', 'option3', 'option4'] as const;
+type CorrectOption = (typeof correctOptions)[number];
 
 const schema = z.object({
   question: z.string().min(1, 'Question is required'),
@@ -31,7 +34,15 @@ const schema = z.object({
   option2: z.string().min(1, 'Option 2 is required'),
   option3: z.string().min(1, 'Option 3 is required'),
   option4: z.string().min(1, 'Option 4 is required'),
-  correct_option: z.enum(['option1', 'option2', 'option3', 'option4']),
+  correct_option: z
+    .enum(['', ...correctOptions])
+    .transform((value, ctx): CorrectOption => {
+      if (value === '') {
+        ctx.addIssue({ code: 'custom', message: 'Select the correct option' });
+        return z.NEVER;
+      }
+      return value;
+    }),
   explanation: z.string().optional(),
   difficulty: z.enum(['easy', 'medium', 'difficult', '']).optional(),
   topic: z.string().optional(),
@@ -39,15 +50,17 @@ const schema = z.object({
 });
 
 export type QuestionFormValues = z.infer<typeof schema>;
+type QuestionFormInput = z.input<typeof schema>;
 
 interface QuestionFormProps {
   formId: string;
   questionNumber: number;
   totalQuestions: number;
-  defaultValues?: Partial<QuestionFormValues>;
+  defaultValues?: Partial<QuestionFormInput>;
   topicOptions: Topic[];
   subTopicOptions: SubTopic[];
   onSubmit: (values: QuestionFormValues) => void;
+  onAddQuestion?: (values: QuestionFormValues) => void;
   onClear: () => void;
   onPrevious?: () => void;
   onNextSlot?: () => void;
@@ -55,13 +68,13 @@ interface QuestionFormProps {
   canGoNext?: boolean;
 }
 
-const emptyDefaults: QuestionFormValues = {
+const emptyDefaults: QuestionFormInput = {
   question: '',
   option1: '',
   option2: '',
   option3: '',
   option4: '',
-  correct_option: 'option1',
+  correct_option: '',
   explanation: '',
   difficulty: '',
   topic: '',
@@ -76,6 +89,7 @@ export function QuestionForm({
   topicOptions,
   subTopicOptions,
   onSubmit,
+  onAddQuestion,
   onClear,
   onPrevious,
   onNextSlot,
@@ -86,17 +100,29 @@ export function QuestionForm({
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
+    watch,
     formState: { errors }
-  } = useForm<QuestionFormValues>({
+  } = useForm<QuestionFormInput, unknown, QuestionFormValues>({
     resolver: zodResolver(schema),
     defaultValues: { ...emptyDefaults, ...defaultValues }
   });
+
+  const selectedCorrect = watch('correct_option');
 
   useEffect(() => {
     reset({ ...emptyDefaults, ...defaultValues });
   }, [defaultValues, reset]);
 
-  const optionFields = ['option1', 'option2', 'option3', 'option4'] as const;
+  const optionFields = correctOptions;
+
+  function clearOption(field: CorrectOption) {
+    setValue(field, '', { shouldDirty: true });
+    if (selectedCorrect === field) {
+      setValue('correct_option', '', { shouldDirty: true });
+    }
+  }
 
   return (
     <form id={formId} className="question-workspace" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -105,9 +131,11 @@ export function QuestionForm({
           Question {questionNumber}/{totalQuestions}
         </h3>
         <div className="question-workspace__actions">
-          <button type="button" className="chip-button">
-            + MCQ
-          </button>
+          {onAddQuestion ? (
+            <button type="button" className="chip-button chip-button--primary" onClick={() => void handleSubmit(onAddQuestion)()}>
+              Add Question
+            </button>
+          ) : null}
           <button type="button" className="chip-button chip-button--outline">
             CSV
           </button>
@@ -147,23 +175,48 @@ export function QuestionForm({
       </div>
 
       <section className="question-workspace__section">
-        <h4>Type the options below</h4>
-        {optionFields.map((field, index) => (
-          <div className="option-row" key={field}>
-            <label className="option-row__radio">
-              <input type="radio" value={field} {...register('correct_option')} />
-              <span className="option-row__radio-mark" />
-            </label>
-            <input
-              className={`option-row__input${errors[field] ? ' has-error' : ''}`}
-              placeholder="Type Option here"
-              {...register(field)}
-            />
-            <button type="button" className="option-row__delete" aria-label={`Clear option ${index + 1}`}>
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
+        <div className="question-workspace__section-header">
+          <h4>Type the options below</h4>
+          <p className="muted question-workspace__hint">Select the radio button for the correct answer</p>
+        </div>
+        <Controller
+          name="correct_option"
+          control={control}
+          render={({ field }) => (
+            <>
+              {optionFields.map((optionField, index) => (
+                <div
+                  className={`option-row${field.value === optionField ? ' option-row--correct' : ''}`}
+                  key={optionField}
+                >
+                  <label className="option-row__radio" title="Mark as correct answer">
+                    <input
+                      type="radio"
+                      name={field.name}
+                      value={optionField}
+                      checked={field.value === optionField}
+                      onChange={() => field.onChange(optionField)}
+                    />
+                    <span className="option-row__radio-mark" />
+                  </label>
+                  <input
+                    className={`option-row__input${errors[optionField] ? ' has-error' : ''}`}
+                    placeholder="Type Option here"
+                    {...register(optionField)}
+                  />
+                  <button
+                    type="button"
+                    className="option-row__delete"
+                    onClick={() => clearOption(optionField)}
+                    aria-label={`Clear option ${index + 1}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+        />
         {errors.correct_option ? <p className="field-error">{errors.correct_option.message}</p> : null}
       </section>
 
@@ -235,7 +288,7 @@ export function QuestionForm({
   );
 }
 
-export function questionToFormValues(question?: Question): Partial<QuestionFormValues> {
+export function questionToFormValues(question?: Question): Partial<QuestionFormInput> {
   if (!question) return {};
 
   return {

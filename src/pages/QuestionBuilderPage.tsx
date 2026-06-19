@@ -26,6 +26,7 @@ export function QuestionBuilderPage() {
     hasSavedQuestions,
     setActiveSlot,
     handleNext,
+    handleAddQuestion,
     saveAndContinue,
     clearActiveQuestion,
     isSlotComplete,
@@ -63,6 +64,7 @@ export function QuestionBuilderPage() {
         topicOptions={topicOptions}
         subTopicOptions={subTopicOptions}
         onSubmit={handleNext}
+        onAddQuestion={handleAddQuestion}
         onClear={clearActiveQuestion}
         canGoPrevious={activeSlot > 0}
         canGoNext={activeSlot < totalQuestions - 1}
