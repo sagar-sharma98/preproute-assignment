@@ -18,6 +18,24 @@ npm run dev
 
 Default dev API proxy: `/api` → staging backend (see `vite.config.ts`).
 
+## Vercel deployment
+
+The Vite dev proxy does **not** run on Vercel. `vercel.json` rewrites `/api/*` to the staging backend so login and API calls work the same as locally.
+
+1. Import/connect the repo in [Vercel](https://vercel.com)
+2. Framework preset: **Vite**
+3. Build command: `npm run build`
+4. Output directory: `dist`
+5. Deploy (no env vars required if using `vercel.json` rewrites)
+
+**Optional:** set `VITE_API_BASE_URL` in Vercel only if you want the browser to call the API directly (requires backend CORS for your Vercel domain):
+
+```
+VITE_API_BASE_URL=https://admin-moderator-backend-staging.up.railway.app/api
+```
+
+After changing `vercel.json` or env vars, trigger a **new deployment**.
+
 ## Application flow
 
 1. **Login** — JWT stored in `localStorage`
