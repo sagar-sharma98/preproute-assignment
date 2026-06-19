@@ -7,7 +7,7 @@ import { LoginIllustration } from '../components/login/LoginIllustration';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [userId, setUserId] = useState('');
@@ -18,10 +18,8 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate((location.state as { from?: string } | null)?.from ?? '/tests', { replace: true });
-    }
-  }, [isAuthenticated, location.state, navigate]);
+    logout();
+  }, [logout]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,7 +34,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(userId.trim(), password);
-      navigate('/tests', { replace: true });
+      navigate((location.state as { from?: string } | null)?.from ?? '/tests', { replace: true });
     } catch (error) {
       setServerError(getApiError(error));
     } finally {

@@ -15,10 +15,16 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('preproute_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const requestUrl = String(config.url ?? '');
+  const isPublicAuthRoute = requestUrl.includes('/auth/login');
+
+  if (!isPublicAuthRoute) {
+    const token = localStorage.getItem('preproute_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
+
   return config;
 });
 
@@ -43,7 +49,17 @@ export function getApiError(error: unknown): string {
       return 'The server took too long to respond. Please try again.';
     }
     if (error.response?.status === 401) {
-      return 'Your session is invalid or expired. Please log in again.';
+      const data = error.response?.data as { message?: string; error?: string } | undefined;
+      const apiMessage = data?.message ?? data?.error;
+      const isLoginRequest = String(error.config?.url ?? '').includes('/auth/login');
+
+      if (apiMessage) {
+        return apiMessage;
+      }
+
+      return isLoginRequest
+        ? 'Invalid User ID or password. Please try again.'
+        : 'Your session is invalid or expired. Please log in again.';
     }
     if (error.response?.status === 403) {
       return 'You do not have permission to perform this action.';

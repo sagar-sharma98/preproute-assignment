@@ -46,6 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: Boolean(token || localStorage.getItem('preproute_token')),
       login: async (userId, password) => {
+        localStorage.removeItem('preproute_token');
+        localStorage.removeItem('preproute_user');
+        setToken(null);
+        setUser(null);
+
         const data = await loginRequest(userId, password);
         if (!data.token) {
           throw new Error('Login succeeded, but the server did not return an access token.');
